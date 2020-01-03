@@ -14,7 +14,7 @@ stages:
   jobs:
   - deployment: build
     displayName: Test 
-    pool: 'DMU-Backbone-Labo'
+    pool: 'Azure Pipelines'
     environment: 'DEV'
     strategy:
       runOnce:
