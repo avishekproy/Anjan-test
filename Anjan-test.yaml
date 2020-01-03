@@ -1,0 +1,75 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+  branches:
+    include:
+      - master
+
+stages:
+- stage: Docker_build
+  #displayName: docker build
+  jobs:
+  - deployment: build
+    displayName: Test 
+    pool: 'DMU-Backbone-Labo'
+    environment: 'DEV'
+    strategy:
+      runOnce:
+        deploy:
+         steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: 3.7
+            displayName: "CONFIG -- PYTHON VERSION"
+
+          - script: |
+              pip install -U pip wheel
+            displayName: 'PIP -- INSTALL REQUIRES'
+            enabled: false
+
+          - task: PythonScript@0
+            inputs:
+              scriptSource: 'filePath'
+              scriptPath: 'setup.py'
+              arguments: 'sdist bdist_wheel upload -r local'
+            displayName: 'ARTIFACTORY -- BUILD & UPLOAD TO ARTIFACTORY'
+            enabled: false
+
+          - script: |
+              docker build --no-cache --network host .
+            displayName: 'TEST BUILD -- DOCKER'
+            enabled: false
+            
+- stage: Code_Quality_Scan
+  jobs:
+  - deployment: Release
+    pool: 
+      name: SNLServiceModulesPool
+
+    environment: 'DEV'
+    strategy:
+      runOnce:
+        deploy: 
+          steps:
+           - checkout: self
+
+           - task: SonarSource.sonarqube.15B84CA1-B62F-4A2A-A403-89B77A063157.SonarQubePrepare@4
+             displayName: 'Prepare analysis on SonarQube'
+             inputs: 
+               SonarQube: 'SonarQube Prod'
+               scannerMode: CLI
+               configMode: manual
+               cliProjectKey: 'utils-mi-odata-test-key'
+               cliProjectName: 'spgmi-utils-mi-odata'
+
+           - task: SonarSource.sonarqube.6D01813A-9589-4B15-8491-8164AEB38055.SonarQubeAnalyze@4
+             displayName: 'Run Code Analysis'
+resources:
+   repositories:
+      - repository: ado-yaml-templates
+        type: git
+        ref: refs/heads/Sagarbeeram
+        name: DevOps Shared Framework/ado-yaml-templates
